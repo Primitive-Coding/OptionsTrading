@@ -1,6 +1,11 @@
 # Options Trading
 
+---
+
 ### cash_secured_puts.ipynb
+
+This notebook will streamline the process to get data for `cash-secured-puts`.
+Below is how you can interact with the notebook.
 
 ---
 
