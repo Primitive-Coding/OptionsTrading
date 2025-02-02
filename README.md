@@ -46,7 +46,8 @@ contractSymbol	lastTradeDate	strike	lastPrice	bid	ask	mark	change	change%	volume
 
 Using the dataframe results from above, we can use the "probability" column.
 
-_If you are buying_: Higher probabilities will represent the chance a contract goes in-the-money(ITM). _NOTE_: Contracts already ITM will show a 100% probability, since they already met that criteria.
-_If you are selling_: Higher probabilities will represent the chance a contract expires worthless. If the probability is '98%', then it will most likely expire worthless.
+**If you are buying**: Higher probabilities will represent the chance a contract goes in-the-money(ITM). _NOTE_: Contracts already ITM will show a 100% probability, since they already met that criteria.
+
+**If you are selling**: Higher probabilities will represent the chance a contract expires worthless. If the probability is '98%', then it will most likely expire worthless.
 
 ---
