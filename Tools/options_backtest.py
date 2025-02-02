@@ -112,29 +112,28 @@ class OptionsBacktest:
         if return_value:
             return probability
         else:
-            print(
-                f"""
-    ========================================================
-    Last Price: {self.dollar_format.format(self.last_price)}
-    Strike: {self.dollar_format.format(strike_price)}
-    Distance: {self.percent_decimal_format.format(strike_spread)}
 
-    ----------
-    [Window]
-    Length: {window}
-    Matches: {len(matches)}
-    Total: {int(len(self.candles) / window)}
-    Probability: {self.percent_decimal_format(probability)}
+            return f"""
+========================================================
+Last Price: {self.dollar_format.format(self.last_price)}
+Strike: {self.dollar_format.format(strike_price)}
+Distance: {self.percent_decimal_format.format(strike_spread)}
 
-    --------
-    Trading Days Analyzed: {len(self.candles)}
+----------
+[Window]
+Length(DTE): {window}
+Matches: {len(matches)}
+Total: {int(len(self.candles) / window)}
+Probability: {self.percent_decimal_format.format(probability)}
 
-    Over the last \033[4m{len(self.candles)}\033[0m trading days,
-    \033[4m${self.ticker}\033[0m has dropped \033[4m{self.percent_decimal_format.format(strike_spread)}\033[0m over \033[4m{window}\033[0m days a total of \033[4m{len(matches)}\033[0m time(s). 
-                
+----------
+Trading Days Analyzed: {len(self.candles)}
+
+Over the last \033[4m{len(self.candles)}\033[0m trading days,
+\033[4m${self.ticker}\033[0m has dropped \033[4m{self.percent_decimal_format.format(strike_spread)}\033[0m over \033[4m{window}\033[0m days a total of \033[4m{len(matches)}\033[0m time(s). 
+            
                 
     """
-            )
 
     def get_time_delta(self, t1, t2, weekend_adjusted: bool = True):
         """

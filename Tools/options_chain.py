@@ -127,8 +127,10 @@ class OptionsChain:
         option_data["sell_credit"] = option_data["bid"] * 100
         option_data["sell_credit_mark"] = option_data["mark"] * 100
         option_data["sell_yield"] = (
-            option_data["sell_credit_mark"] / option_data["sell_collateral"]
+            option_data["sell_credit"] / option_data["sell_collateral"]
         ) * 100
+        periods = option_data["DTE"] / 365
+        option_data["annual_yield"] = option_data["sell_yield"] * periods
         # Volume data
         option_data["volume/OI"] = option_data["volume"] / option_data["openInterest"]
         # Greeks
@@ -172,6 +174,7 @@ class OptionsChain:
             "sell_credit",
             "sell_credit_mark",
             "sell_yield",
+            "annual_yield",
             "delta",
             "gamma",
             "theta",
