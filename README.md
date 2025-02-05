@@ -36,9 +36,14 @@ oc.display(row, option_type="put")
 
 #### Explanation:
 
+display() will print the following:
+
 ===========================================================
+
 Price: $10.16
+
 Strike: $9.00
+
 Distance: -11.42%
 
 ---
@@ -46,13 +51,17 @@ Distance: -11.42%
 [Expiration]
 
 DTE: 3
+
 TDTE: 3
 
 ---
 
 1 Year(s): 98.81%
+
 5 Year(s): 99.52%
+
 10 Year(s): 99.40%
+
 max Year(s): 99.68%
 
 ---
@@ -60,6 +69,7 @@ max Year(s): 99.68%
 [Profitability]
 
 Premium: 3.96
+
 Collateral: 900.0
 
 ---
