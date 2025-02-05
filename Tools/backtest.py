@@ -1,4 +1,5 @@
 import pandas as pd
+import yfinance as yf
 
 
 class Backtest:
@@ -6,6 +7,46 @@ class Backtest:
 
         # Formats
         self.decimal_format = "{:,.2f}"
+
+    def multi_year_analysis(
+        self,
+        candles: pd.DataFrame,
+        option_type: str,
+        option_side: str,
+        window: int,
+        strike_price: float,
+        years: list = [1, 5, 10],
+    ):
+        data = {}
+        # Convert list in to dates.
+        years_ago = [pd.Timestamp.now() - pd.DateOffset(years=y) for y in years]
+        if option_type == "call":
+            index = 0
+            for y in years_ago:
+                candle_section = candles.loc[candles.index >= y]
+                prob_data = self.backtest_call(
+                    candle_section, window, strike_price, option_side=option_side
+                )
+                data[years[index]] = prob_data
+                index += 1
+            data["max"] = self.backtest_call(candles, window, strike_price, option_side)
+        elif option_type == "put":
+            index = 0
+            for y in years_ago:
+                candle_section = candles.loc[candles.index >= y]
+                prob_data = self.backtest_put(
+                    candle_section, window, strike_price, option_side=option_side
+                )
+                data[years[index]] = prob_data
+                index += 1
+            data["max"] = self.backtest_put(candles, window, strike_price, option_side)
+
+        df = pd.DataFrame.from_dict(data, orient="index")[
+            ["total", "match", "distance", "probability"]
+        ]
+        return df
+
+    """------------- Puts -------------"""
 
     def backtest_put(
         self,
@@ -105,6 +146,8 @@ class Backtest:
         }
 
         return probability_data
+
+    """------------- Calls -------------"""
 
     def backtest_call(
         self,
