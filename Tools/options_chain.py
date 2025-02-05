@@ -17,19 +17,31 @@ from Tools.options_backtest import OptionsBacktest
 
 class OptionsChain:
     def __init__(
-        self, ticker: str, expiration_date: str = "", buy: bool = True, sell=False
+        self,
+        ticker: str,
+        expiration_date: str = "",
+        buy: bool = True,
+        sell=False,
+        contract_fee: float = 0.04,
+        backtest_period: str = "max",
     ) -> None:
         self.ticker = ticker.upper()
-        self.backtest = OptionsBacktest(ticker, buy, sell)
+
         self.expiration_date = expiration_date
         self.buy = buy
         self.sell = sell
+        self.contract_fee = contract_fee
+        self.backtest_period = backtest_period
+        self.backtest = OptionsBacktest(ticker, buy, sell, period=backtest_period)
         self.option_chain = pd.DataFrame()
         self.calls = pd.DataFrame()
         self.puts = pd.DataFrame()
         self.candles = self.backtest.candles
         self.stock_price = self.backtest.last_price
         self.risk_free_rate = None
+
+        # Dates
+        self.current_date = dt.datetime.now().date()
 
         # Formats
         self.date_format = "%Y-%m-%d"
@@ -116,11 +128,23 @@ class OptionsChain:
         # Stock Price & Risk Free Rate
         stock_price = self.get_stock_price()
         risk_free_rate = self.get_risk_free_rate()
+        # Strike Spread
+        if option_type == "call":
+            option_data["strike_spread"] = (
+                (option_data["strike"] - self.backtest.last_price)
+                / self.backtest.last_price
+            ) * 100
+        elif option_type == "put":
+            option_data["strike_spread"] = (
+                (self.backtest.last_price - option_data["strike"])
+                / self.backtest.last_price
+            ) * -100
         # Expiration Dates
         option_data["expirationDate"] = option_data["contractSymbol"].apply(
             self.apply_expiration_date
         )
         option_data["DTE"] = option_data["expirationDate"].apply(self.apply_dte)
+        option_data["TDTE"] = option_data["expirationDate"].apply(self.apply_tdte)
         option_data["mark"] = (option_data["bid"] + option_data["ask"]) / 2
         # Selling data
         option_data["sell_collateral"] = option_data["strike"] * 100
@@ -168,8 +192,10 @@ class OptionsChain:
             "inTheMoney",
             "contractSize",
             "currency",
+            "strike_spread",
             "expirationDate",
             "DTE",
+            "TDTE",
             "sell_collateral",
             "sell_credit",
             "sell_credit_mark",
@@ -370,6 +396,13 @@ class OptionsChain:
         delta = expiration_date - current_date
         return delta.days
 
+    # ---------- Trading Days Expiration ---------- #
+    def apply_tdte(self, expiration_date: str):
+        t1 = self.current_date
+        t2 = expiration_date
+        t3 = self.backtest.get_time_delta(t1, t2, weekend_adjusted=True)
+        return t3
+
     # ---------- Probability ---------- #
     def apply_probability_row(self, row, option_type: str):
         probability = self.backtest.get_probability(
@@ -378,3 +411,91 @@ class OptionsChain:
             option_type=option_type,
         )
         return probability
+
+    # ---------- Display ---------- #
+    def display(
+        self,
+        row,
+        option_type: str,
+        num_contracts: int = 1,
+        backtest_periods: list = ["1Y", "5Y", "10Y", "max"],
+    ):
+        # Spread & Fees
+        fees = num_contracts * self.contract_fee
+        strike = row["strike"]
+        spread = row["strike_spread"]
+        # Expiration
+        expiration = row["expirationDate"]
+        dte = row["DTE"]
+        tdte = row["TDTE"]
+        # Credit & Premium
+        credit = row["sell_credit"] - fees
+        collateral = row["sell_collateral"]
+        d_labels = []
+        for i in backtest_periods:
+
+            backtest = OptionsBacktest(self.ticker, self.buy, self.sell, period=i)
+            candles = backtest.candles
+            bt = backtest.get_probability(
+                strike,
+                option_type=option_type,
+                expiration_date=expiration,
+                return_value=False,
+                return_dict=True,
+            )
+            if i.lower() == "max":
+                label = i
+            else:
+                label = i[:-1]
+
+            d = f"""{label} Year(s): {self.percent_decimal_format.format(bt['probability'])}
+"""
+
+            #             d = f"""
+
+            # -- {label} Year --
+
+            # Total Candles: {len(backtest.candles)}
+            # Total Periods: {bt['total']}
+            # Match Periods: {bt['match']}
+            # Probability: {self.percent_decimal_format.format(bt['probability'])}
+            #             """
+            d_labels.append(d)
+
+        display = f"""
+===========================================================
+Price: {self.dollar_format.format(self.stock_price)}
+Strike: {self.dollar_format.format(strike)}
+Distance: {self.percent_decimal_format.format(spread)}
+
+----------
+[Expiration]
+
+DTE: {dte}
+TDTE: {tdte}
+
+----------
+{''.join(d_labels)}
+
+----------
+[Profitability]
+
+Premium: {credit}
+Collateral: {collateral}
+        
+        
+        """
+        print(display)
+
+    def get_index_by_value(self, df, column_name, value):
+        index = df.index[df[column_name] == value].tolist()
+        return index
+
+
+"""
+[Analysis]
+
+        Total Candles: {len(self.candles)}
+        Total Periods: {bt['total']}
+        Matching Periods: {bt['match']}
+        Probability: {self.percent_decimal_format.format(bt['probability'])}"""

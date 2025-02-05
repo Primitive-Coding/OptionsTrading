@@ -85,6 +85,7 @@ class OptionsBacktest:
         expiration_date,
         option_type: str = "call",
         return_value: bool = True,
+        return_dict: bool = False,
     ):
 
         if option_type == "call":
@@ -111,6 +112,13 @@ class OptionsBacktest:
 
         if return_value:
             return probability
+        elif return_dict:
+            return {
+                "probability": probability,
+                "match": match_len,
+                "total": df_len,
+            }
+
         else:
 
             return f"""
