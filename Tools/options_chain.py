@@ -19,6 +19,8 @@ class OptionsChain:
     def __init__(
         self,
         ticker: str,
+        call: bool,
+        put: bool,
         expiration_date: str = "",
         buy: bool = True,
         sell=False,
@@ -26,13 +28,29 @@ class OptionsChain:
         backtest_period: str = "max",
     ) -> None:
         self.ticker = ticker.upper()
+        if call:
+            self.call = True
+            self.put = False
+            self.option_type = "call"
+        elif put:
+            self.put = True
+            self.call = False
+            self.option_type = "put"
 
         self.expiration_date = expiration_date
         self.buy = buy
         self.sell = sell
         self.contract_fee = contract_fee
         self.backtest_period = backtest_period
-        self.backtest = OptionsBacktest(ticker, buy, sell, period=backtest_period)
+        self.backtest = OptionsBacktest(
+            ticker,
+            strike_price=0,
+            call=call,
+            put=put,
+            buy=buy,
+            sell=sell,
+            period=backtest_period,
+        )
         self.option_chain = pd.DataFrame()
         self.calls = pd.DataFrame()
         self.puts = pd.DataFrame()
@@ -420,6 +438,10 @@ class OptionsChain:
         num_contracts: int = 1,
         backtest_periods: list = ["1Y", "5Y", "10Y", "max"],
     ):
+        # Year range
+        one_year = yf.download(self.ticker, period="1y")
+        year_low = one_year["Low"].min().values[0]
+        year_high = one_year["High"].max().values[0]
         # Spread & Fees
         fees = num_contracts * self.contract_fee
         strike = row["strike"]
@@ -434,7 +456,9 @@ class OptionsChain:
         d_labels = []
         for i in backtest_periods:
 
-            backtest = OptionsBacktest(self.ticker, self.buy, self.sell, period=i)
+            backtest = OptionsBacktest(
+                self.ticker, strike, self.call, self.put, self.buy, self.sell, period=i
+            )
             candles = backtest.candles
             bt = backtest.get_probability(
                 strike,
@@ -482,6 +506,12 @@ TDTE: {tdte}
 
 Premium: {credit}
 Collateral: {collateral}
+
+----------
+[Year Range]
+
+{self.dollar_format.format(year_low)} - {self.dollar_format.format(year_high)}
+
         
         
         """

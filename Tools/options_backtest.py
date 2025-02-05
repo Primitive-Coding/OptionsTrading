@@ -10,12 +10,18 @@ class OptionsBacktest:
     def __init__(
         self,
         ticker: str,
+        strike_price: float,
+        call: bool,
+        put: bool,
         buy: bool = True,
         sell: bool = False,
         interval: str = "1d",
         period: str = "max",
     ) -> None:
         self.ticker = ticker.upper()
+        self.strike_price = strike_price
+        self.call = call
+        self.put = put
         self.buy = buy
         self.sell = sell
         self.candles = yf.download(
@@ -48,7 +54,10 @@ class OptionsBacktest:
             close = []
             while j < window:
                 try:
-                    candle_data = self.candles[["Close", "change"]].iloc[i]
+                    candle_data = self.candles[["High", "Low", "Close", "change"]].iloc[
+                        i
+                    ]
+
                     date = candle_data.name
                     date = dt.datetime.strftime(date, self.date_format)
                     dates.append(date)
