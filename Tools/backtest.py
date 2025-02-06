@@ -46,12 +46,27 @@ class Backtest:
         ]
         return df
 
+    """------------- 0 DTE -------------"""
+
+    def backtest_0dte(
+        self,
+        candles: pd.DataFrame,
+        strike_price: float,
+        option_type: str,
+        option_side: str,
+        manual_stock_price: float = 0,
+    ):
+        prob = self.get_probability(
+            candles, 0, strike_price, option_type, option_side, manual_stock_price
+        )
+        return prob
+
     """------------- Puts -------------"""
 
     def backtest_put(
         self,
         candles,
-        window: int,
+        dte: int,
         strike_price: float,
         option_side: str,
         manual_stock_price: float = 0,
@@ -77,82 +92,17 @@ class Backtest:
         dict
             Dictionary containing probability data.
         """
-        i = 0
-        window += 1
-        data = {
-            "window_start": [],
-            "window_end": [],
-            "anchor": [],
-            "outlier_date": [],
-            "outlier_price": [],
-            "outlier_change": [],
-        }
-        if manual_stock_price == 0:
-            last_price = candles["Close"].iloc[-1]
-        else:
-            last_price = manual_stock_price
-        strike_spread = self.percentage_handling(last_price, strike_price)
-        while True:
-            section = candles.iloc[i : i + window]
-            if section.empty or len(section) != window:
-                break
-            section_dates = section.index.to_list()
-            j = 0
-            anchor = 0
-            changes = {}
-            low_prices = []
-            low_prices = {}
-            for index, row in section.iterrows():
-                close = row["Close"]
-                if j == 0:
-                    anchor = close
-                else:
-                    low = row["Low"]
-                    low_prices[index] = low
-                    # low_prices.append(low)
-                    change = self.percentage_handling(anchor, low)
-                    changes[index] = change
-                j += 1
-
-            # Lowest change date, lowest change value
-            lcd, lcv = self.get_lowest_value(changes)
-            # Lowest price date, lowest price value
-            lpd, lpv = self.get_lowest_value(low_prices)
-            # Add data to dictionary
-            data["window_start"].append(section_dates[0])
-            data["window_end"].append(section_dates[-1])
-            data["anchor"].append(anchor)
-            data["outlier_date"].append(lcd)
-            data["outlier_price"].append(lpv)
-            data["outlier_change"].append(lcv)
-            i += window
-        # Create dataframe containing outlier data.
-        df = pd.DataFrame(data)
-        df["strike_spread"] = strike_spread
-        df["breached"] = df["outlier_change"] < df["strike_spread"]
-        # Get sections that were breached (change exceeded strike_spread)
-        matches = df[df["breached"] == True]
-        # Probability Data
-        probability = len(matches) / len(df)
-        if option_side == "buy":
-            pass
-        elif option_side == "sell":
-            probability = 1 - probability
-        probability_data = {
-            "total": len(df),
-            "match": len(matches),
-            "distance": self.decimal_format.format(strike_spread),
-            "probability": probability,
-        }
-
-        return probability_data
+        prob = self.get_probability(
+            candles, dte, strike_price, "put", option_side, manual_stock_price
+        )
+        return prob
 
     """------------- Calls -------------"""
 
     def backtest_call(
         self,
         candles,
-        window: int,
+        dte: int,
         strike_price: float,
         option_side: str,
         manual_stock_price: float = 0,
@@ -178,6 +128,22 @@ class Backtest:
         dict
             Dictionary containing probability data.
         """
+        prob = self.get_probability(
+            candles, dte, strike_price, "call", option_side, manual_stock_price
+        )
+        return prob
+
+    """------------- Probability -------------"""
+
+    def get_probability(
+        self,
+        candles: pd.DataFrame,
+        window: int,
+        strike_price: float,
+        option_type: str,
+        option_side: str,
+        manual_stock_price: float = 0,
+    ):
         i = 0
         window += 1
         data = {
@@ -201,35 +167,41 @@ class Backtest:
             j = 0
             anchor = 0
             changes = {}
-            high_prices = {}
+            prices = {}
             for index, row in section.iterrows():
                 close = row["Close"]
                 if j == 0:
                     anchor = close
                 else:
-                    high = row["High"]
-                    high_prices[index] = high
+                    if option_type == "put":
+                        value = row["Low"]
+                    elif option_type == "call":
+                        value = row["High"]
+                    prices[index] = value
                     # low_prices.append(low)
-                    change = self.percentage_handling(anchor, high)
+                    change = self.percentage_handling(anchor, value)
                     changes[index] = change
                 j += 1
 
             # Lowest change date, lowest change value
-            hcd, hcv = self.get_max_value(changes)
+            change_date, change_value = self.get_lowest_value(changes)
             # Lowest price date, lowest price value
-            hpd, hpv = self.get_max_value(high_prices)
+            price_date, price_value = self.get_lowest_value(prices)
             # Add data to dictionary
             data["window_start"].append(section_dates[0])
             data["window_end"].append(section_dates[-1])
             data["anchor"].append(anchor)
-            data["outlier_date"].append(hcd)
-            data["outlier_price"].append(hpv)
-            data["outlier_change"].append(hcv)
+            data["outlier_date"].append(change_date)
+            data["outlier_price"].append(price_value)
+            data["outlier_change"].append(change_value)
             i += window
         # Create dataframe containing outlier data.
         df = pd.DataFrame(data)
         df["strike_spread"] = strike_spread
-        df["breached"] = df["outlier_change"] > df["strike_spread"]
+        if option_type == "put":
+            df["breached"] = df["outlier_change"] < df["strike_spread"]
+        elif option_type == "call":
+            df["breached"] = df["outlier_change"] > df["strike_spread"]
         # Get sections that were breached (change exceeded strike_spread)
         matches = df[df["breached"] == True]
         # Probability Data
@@ -243,21 +215,11 @@ class Backtest:
             "match": len(matches),
             "distance": self.decimal_format.format(strike_spread),
             "probability": probability,
+            "p%": self.decimal_format.format(probability * 100),
         }
-        return probability_data
-
-    def percentage_handling(self, start_value, final_value):
-        # Formula for decrease
-        value = 0
-        if start_value > final_value:
-            value = (start_value - final_value) / abs(start_value)
-            value *= -1
-        # Formula for increase
-        elif start_value < final_value:
-            value = (final_value - start_value) / abs(start_value)
-        elif start_value == final_value:
-            return 0
-        return value
+        df = pd.DataFrame([probability_data]).T
+        df.columns = ["Value"]
+        return df
 
     """------------- Dictionary Sorting -------------"""
 
@@ -280,3 +242,16 @@ class Backtest:
         highest_key = min(data, key=data.get)  # Get the key with the lowest value
         highest_value = data[highest_key]  # Get the lowest value
         return highest_key, highest_value
+
+    def percentage_handling(self, start_value, final_value):
+        # Formula for decrease
+        value = 0
+        if start_value > final_value:
+            value = (start_value - final_value) / abs(start_value)
+            value *= -1
+        # Formula for increase
+        elif start_value < final_value:
+            value = (final_value - start_value) / abs(start_value)
+        elif start_value == final_value:
+            return 0
+        return value

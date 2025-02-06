@@ -8,13 +8,13 @@ if __name__ == "__main__":
     ticker = "F"
     candles = yf.download(ticker, multi_level_index=False)
     back = Backtest()
-    prob = back.multi_year_analysis(
-        candles, option_type="put", option_side="sell", window=2, strike_price=9
+
+    # p = back.backtest_0dte(candles, )
+
+    p = back.backtest_put(
+        candles=candles,
+        dte=30,
+        strike_price=8,
+        option_side="sell",
+        manual_stock_price=9.54,
     )
-    print(f"Prob: {prob}")
-    # p = back.backtest_put(candles, 2, 9, "sell", manual_stock_price=9.50)
-    # print(f"P: {p}")
-    # # oc = OptionsChain("RIVN", buy=False, sell=True)
-    # # oc.set_all()
-    # # chain = oc.get_calls()
-    # # print(f"Chain: {chain}")
